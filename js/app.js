@@ -48,21 +48,31 @@ function autoNote(ln,i){
 const noteOf=(ln,i)=>ln.notes[i]||autoNote(ln,i);
 const moveLabel=(i,san)=>(Math.floor(i/2)+1)+(i%2?"... ":". ")+san;
 
-/* ---------- storage ---------- */
-const KEY="bookmoves.v2";
-let saved={progress:{}};
-try{ const r=localStorage.getItem(KEY); if(r) saved=Object.assign(saved,JSON.parse(r)); }catch(e){}
-function persist(){ try{ localStorage.setItem(KEY,JSON.stringify(saved)); }catch(e){} }
+/* ---------- storage: one progress record per player ---------- */
+const KEY="bookmoves.v3";
+const newId=()=>"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+let store=null;
+try{ const r=localStorage.getItem(KEY); if(r) store=JSON.parse(r); }catch(e){}
+if(!store||!store.profiles||!Object.keys(store.profiles).length){
+  let old={};
+  try{ const r=localStorage.getItem("bookmoves.v2"); if(r) old=JSON.parse(r)||{}; }catch(e){}
+  const id=newId();
+  store={current:id,profiles:{[id]:Object.assign({},old,{name:"Player 1",progress:old.progress||{}})}};
+}
+if(!store.profiles[store.current]) store.current=Object.keys(store.profiles)[0];
+let saved=store.profiles[store.current];
+function persist(){ try{ localStorage.setItem(KEY,JSON.stringify(store)); }catch(e){} }
+persist();
 const prog=id=>saved.progress[id]||0;
 
 /* ---------- state ---------- */
-const S={
-  oi:Math.min(saved.oi||0,BOOK.length-1), li:0, mode:saved.mode||"learn", ply:0, flip:false,
-  sel:null, msg:null,
-  side:saved.side||"auto", scope:saved.scope||"line", tscope:saved.tscope||"opening",
-  P:null
-};
-if(saved.li!=null && BOOK[S.oi].lines[saved.li]) S.li=saved.li;
+const S={ oi:0, li:0, mode:"learn", ply:0, flip:false, sel:null, msg:null, side:"auto", scope:"line", tscope:"opening", P:null };
+function loadSettings(){
+  S.oi=Math.min(saved.oi||0,BOOK.length-1); S.li=0; S.ply=0; S.flip=false; S.sel=null; S.msg=null;
+  S.mode=saved.mode||"learn"; S.side=saved.side||"auto"; S.scope=saved.scope||"line"; S.tscope=saved.tscope||"opening";
+  if(saved.li!=null && BOOK[S.oi].lines[saved.li]) S.li=saved.li;
+}
+loadSettings();
 const op=()=>BOOK[S.oi], line=()=>op().lines[S.li];
 const $=id=>document.getElementById(id);
 const board=$("board");
@@ -412,5 +422,113 @@ document.addEventListener("keydown",e=>{
   else if((e.key==="h"||e.key==="H")&&drill()) $("bHint").click();
 });
 
+/* ---------- players, save and load ---------- */
+const panel=$("playerPanel"), pBtn=$("bPlayer");
+let pState={edit:null,del:null,msg:null};
+const stats=pr=>{ const ids=Object.keys(pr.progress||{}).filter(k=>pr.progress[k]>=3);
+  const t=new Set(TALL.map(([o,l])=>BOOK[o].lines[l].id));
+  return {lines:ids.filter(k=>!t.has(k)).length, traps:ids.filter(k=>t.has(k)).length}; };
+function renderPlayers(){
+  pBtn.querySelector(".pname").textContent=saved.name;
+  if(panel.hidden) return;
+  const ids=Object.keys(store.profiles);
+  let h=`<p class="label">Players on this device</p><div class="plist">`;
+  for(const id of ids){
+    const pr=store.profiles[id], st=stats(pr), cur=id===store.current;
+    if(pState.edit===id){
+      h+=`<form class="prow edit" data-id="${id}"><input id="pRename" maxlength="30" value="${esc(pr.name)}" aria-label="Player name"><button class="btn pri" type="submit">Save</button><button class="btn" type="button" data-act="cancel">Cancel</button></form>`;
+    } else if(pState.del===id){
+      h+=`<div class="prow del"><span>Delete ${esc(pr.name)} and all their progress?</span><button class="btn danger" data-act="confirm-del" data-id="${id}">Delete</button><button class="btn" data-act="cancel">Cancel</button></div>`;
+    } else {
+      h+=`<div class="prow ${cur?"cur":""}"><button class="pick" data-act="pick" data-id="${id}" aria-pressed="${cur}"><span class="pdot"></span><span class="pn">${esc(pr.name)}</span><span class="ps">${plural(st.lines,"line")} · ${plural(st.traps,"trap")}</span></button>
+        <button class="ic-btn" data-act="rename" data-id="${id}" title="Rename" aria-label="Rename ${esc(pr.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg></button>
+        ${ids.length>1?`<button class="ic-btn" data-act="delete" data-id="${id}" title="Delete" aria-label="Delete ${esc(pr.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`:""}</div>`;
+    }
+  }
+  h+=`</div><form class="padd" id="pAdd"><input id="pNew" maxlength="30" placeholder="New player name" aria-label="New player name"><button class="btn" type="submit">Add player</button></form>
+  <p class="label" style="margin-top:14px">Backup for ${esc(saved.name)}</p>
+  <div class="acts"><button class="btn" data-act="save">Save to file</button><button class="btn" data-act="load">Load from file</button></div>
+  <p class="pnote">Save writes ${esc(saved.name)}'s progress to a .json file. Load it in any browser or on another computer to continue. Loading never removes progress: for each line, the better result is kept.</p>
+  ${pState.msg?`<div class="toast ${pState.msg.bad?"bad":""}">${esc(pState.msg.t)}</div>`:""}`;
+  panel.innerHTML=h;
+  const r=$("pRename"); if(r){ r.focus(); r.select(); }
+}
+function switchPlayer(id){
+  clearTimeout(timer);
+  store.current=id; saved=store.profiles[id]; persist();
+  loadSettings(); setMode(S.mode); renderPlayers();
+}
+function togglePanel(open){
+  panel.hidden=open===undefined?!panel.hidden:!open;
+  pBtn.setAttribute("aria-expanded",!panel.hidden);
+  if(panel.hidden) pState={edit:null,del:null,msg:null};
+  renderPlayers();
+}
+pBtn.onclick=e=>{ e.stopPropagation(); togglePanel(); };
+document.addEventListener("pointerdown",e=>{ if(!panel.hidden&&!panel.contains(e.target)&&!pBtn.contains(e.target)) togglePanel(false); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!panel.hidden) togglePanel(false); });
+const plural=(n,w)=>`${n} ${w}${n===1?"":"s"}`;
+const cleanName=v=>String(v||"").replace(/\s+/g," ").trim().slice(0,30);
+const nameTaken=(n,except)=>Object.entries(store.profiles).some(([id,p])=>id!==except&&p.name.toLowerCase()===n.toLowerCase());
+panel.addEventListener("submit",e=>{
+  e.preventDefault();
+  if(e.target.id==="pAdd"){
+    const n=cleanName($("pNew").value);
+    if(!n){ pState.msg={bad:true,t:"Type a name for the new player."}; return renderPlayers(); }
+    if(nameTaken(n)){ pState.msg={bad:true,t:`There is already a player called ${n}.`}; return renderPlayers(); }
+    const id=newId(); store.profiles[id]={name:n,progress:{}}; pState.msg={t:`Added ${n}. Their progress starts empty.`};
+    return switchPlayer(id);
+  }
+  const id=e.target.dataset.id, n=cleanName($("pRename").value);
+  if(!n||nameTaken(n,id)){ pState.msg={bad:true,t:n?`There is already a player called ${n}.`:"The name can't be empty."}; return renderPlayers(); }
+  store.profiles[id].name=n; pState.edit=null; pState.msg=null; persist(); renderPlayers();
+});
+panel.addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]"); if(!b) return;
+  const id=b.dataset.id, act=b.dataset.act;
+  if(act==="pick"){ pState.msg=null; if(id!==store.current) switchPlayer(id); }
+  else if(act==="rename"){ pState={edit:id,del:null,msg:null}; renderPlayers(); }
+  else if(act==="delete"){ pState={edit:null,del:id,msg:null}; renderPlayers(); }
+  else if(act==="cancel"){ pState.edit=pState.del=null; renderPlayers(); }
+  else if(act==="confirm-del"){
+    const n=store.profiles[id].name; delete store.profiles[id]; pState={edit:null,del:null,msg:{t:`Deleted ${n}.`}};
+    if(id===store.current) switchPlayer(Object.keys(store.profiles)[0]); else { persist(); renderPlayers(); }
+  }
+  else if(act==="save") saveFile();
+  else if(act==="load") $("fileIn").click();
+});
+function localDate(){ const d=new Date(), z=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
+function saveFile(){
+  const data={app:"book-moves",format:1,player:saved.name,savedAt:new Date().toISOString(),progress:saved.progress,
+    settings:{oi:saved.oi,li:saved.li,mode:saved.mode,side:saved.side,scope:saved.scope,tscope:saved.tscope}};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`book-moves-${saved.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"player"}-${localDate()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  pState.msg={t:`Saved ${a.download}. Check your Downloads folder.`}; renderPlayers();
+}
+$("fileIn").addEventListener("change",async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  let d;
+  try{ d=JSON.parse(await f.text()); }catch(err){ d=null; }
+  if(!d||d.app!=="book-moves"||typeof d.progress!=="object"||!d.progress){
+    pState.msg={bad:true,t:`${f.name} isn't a Book Moves progress file.`}; return renderPlayers();
+  }
+  const progress={};
+  for(const [k,v] of Object.entries(d.progress)) if(typeof k==="string"&&Number.isFinite(+v)) progress[k]=Math.max(0,Math.min(3,Math.round(+v)));
+  const n=cleanName(d.player)||"Imported player";
+  let id=Object.keys(store.profiles).find(k=>store.profiles[k].name.toLowerCase()===n.toLowerCase());
+  const existed=!!id;
+  if(!id){ id=newId(); store.profiles[id]=Object.assign({name:n,progress:{}},d.settings&&typeof d.settings==="object"?d.settings:{}); }
+  const pr=store.profiles[id];
+  for(const [k,v] of Object.entries(progress)) pr.progress[k]=Math.max(pr.progress[k]||0,v);
+  const st=stats(pr);
+  pState.msg={t:`${existed?"Merged":"Loaded"} ${n}'s progress: ${plural(st.lines,"line")} learned, ${plural(st.traps,"trap")} mastered.`};
+  switchPlayer(id);
+});
+
 setMode(S.mode);
+renderPlayers();
 })();

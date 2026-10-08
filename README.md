@@ -12,7 +12,8 @@ A chess opening trainer that runs entirely in your browser. Learn the main lines
   - **Learn:** step through a line with the arrow keys. A list shows every book move and known mistake from the current position, so you can branch into other variations.
   - **Practice:** the computer plays the book replies and you have to find your side's moves. Hints highlight the piece, then show an arrow.
   - **Punish:** the opponent leaves the book with a mistake and you have to find the refutation, then convert.
-- **Progress tracking.** Three clean runs (no mistakes, no hints) mark a line as learned. Progress is stored in your browser.
+- **Progress tracking for several players.** Three clean runs (no mistakes, no hints) mark a line as learned. Each player on the device has their own progress.
+- **Save and load.** Save a player's progress to a `.json` file and load it in another browser or on another computer.
 - **Works offline** and installs as an app. No account, no tracking, no build step.
 
 ## Run it locally
@@ -30,6 +31,12 @@ npm start
 Then open <http://localhost:8080>. In Chrome or Edge, click the install icon in the address bar. In Safari on macOS, choose **File → Add to Dock**. On iPhone or Android, open the GitHub Pages site and choose **Add to Home Screen**.
 
 No `npm install` is needed: the project has no dependencies.
+
+## Players and saving progress
+
+Click the player button in the top right corner to add players, switch between them, rename them or delete them. Progress is saved automatically in the browser you're using.
+
+Progress stays in that one browser, and opening `index.html` directly, `localhost:8080` and the GitHub Pages site each keep separate progress. To move progress somewhere else, or to back it up, use **Save to file**, then **Load from file** on the other side. Loading a file for a player who already exists merges the two: for each line, the better result is kept, so nothing is lost. A file for a new name creates that player.
 
 ## Publish on GitHub Pages
 

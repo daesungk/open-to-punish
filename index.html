@@ -15,7 +15,14 @@
 <div class="wrap">
   <header class="top">
     <div class="brand"><h1>Book Moves</h1><p>Learn the main lines, then play them from memory.</p></div>
-    <div class="tally" id="tally"></div>
+    <div class="hdr-r">
+      <div class="tally" id="tally"></div>
+      <div class="player-wrap">
+        <button class="player-btn" id="bPlayer" aria-haspopup="true" aria-expanded="false" title="Players, save and load"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span class="pname"></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="player-panel card" id="playerPanel" hidden></div>
+      </div>
+      <input type="file" id="fileIn" accept=".json,application/json" hidden>
+    </div>
   </header>
   <div class="app">
     <nav class="rail" id="rail" aria-label="Openings"></nav>
