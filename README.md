@@ -72,10 +72,11 @@ After changing any file, bump `VERSION` in `sw.js` so installed copies pick up t
 index.html              page markup
 css/app.css             styles, light and dark themes
 js/app.js               board, Learn / Practice / Punish logic
+js/pieces.js            chess piece shapes (SVG paths)
 data/book.js            opening lines
 data/traps.js           mistake drills
 vendor/chess.js         move generation and validation (chess.js 0.10.3)
-fonts/                  bundled fonts (chess pieces subset to 6 KB)
+fonts/                  bundled Figtree font
 sw.js, manifest.webmanifest, icons/   offline support and app install
 tools/validate.js       npm test: checks every line
 tools/serve.js          npm start: local server
@@ -83,4 +84,4 @@ tools/serve.js          npm start: local server
 
 ## License
 
-MIT for the app code and opening data. chess.js is BSD 2-Clause and the fonts are under the SIL Open Font License; see `LICENSE`.
+MIT for the app code and opening data. chess.js is BSD 2-Clause; the Figtree font and the piece shapes (from Noto Sans Symbols 2) are under the SIL Open Font License. See `LICENSE`.

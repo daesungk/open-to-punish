@@ -22,5 +22,6 @@ SOFTWARE.
 
 Third-party components keep their own licenses:
 - vendor/chess.js — chess.js 0.10.3 by Jeff Hlywa, BSD 2-Clause (vendor/chess.js.LICENSE)
-- fonts/ — Young Serif, Public Sans, JetBrains Mono and Noto Sans Symbols 2,
-  all under the SIL Open Font License 1.1 (fonts/LICENSE-OFL.txt)
+- fonts/ — Figtree, SIL Open Font License 1.1 (fonts/LICENSE-OFL.txt)
+- js/pieces.js — piece shapes drawn from Noto Sans Symbols 2,
+  SIL Open Font License 1.1 (fonts/LICENSE-OFL.txt)

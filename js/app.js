@@ -1,8 +1,6 @@
 (function(){
 "use strict";
 const FILES="abcdefgh";
-const GLYPH={k:["♚","♔"],q:["♛","♕"],r:["♜","♖"],b:["♝","♗"],n:["♞","♘"],p:["♟","♙"]};
-const VS="︎";
 const PNAME={n:"knight",b:"bishop",r:"rook",q:"queen",k:"king",p:"pawn"};
 const posKey=f=>f.split(" ").slice(0,4).join(" ");
 
@@ -94,8 +92,10 @@ function parseFen(f){
   return map;
 }
 function pieceHTML(p){
-  const g=GLYPH[p.t];
-  return p.c==="w"?`<span class="pc w"><i>${g[0]+VS}</i><b>${g[1]+VS}</b></span>`:`<span class="pc b"><i>${g[0]+VS}</i></span>`;
+  const d=PIECES[p.t];
+  return p.c==="w"
+    ? `<span class="pc w"><svg viewBox="0 0 100 100" aria-hidden="true"><path class="w1" d="${d.wback}"/><path class="w2" d="${d.line}"/></svg></span>`
+    : `<span class="pc b"><svg viewBox="0 0 100 100" aria-hidden="true"><path class="b1" d="${d.bback}"/><path class="b2" d="${d.fill}"/></svg></span>`;
 }
 function renderBoard(o={}){
   const fen=currentFen(), map=parseFen(fen), bot=bottomColor();
@@ -153,7 +153,7 @@ board.addEventListener("pointerdown",e=>{
     const pc=board.querySelector(`[data-sq="${sq}"] .pc`);
     if(pc){
       const g=pc.cloneNode(true); g.classList.add("ghost");
-      g.style.fontSize=getComputedStyle(pc).fontSize; g.style.display="none";
+      const r=pc.getBoundingClientRect(); g.style.width=r.width+"px"; g.style.height=r.height+"px"; g.style.inset="auto"; g.style.display="none";
       document.body.appendChild(g);
       drag={from:sq,ghost:g,x:e.clientX,y:e.clientY,moved:false};
       board.setPointerCapture(e.pointerId);
@@ -163,7 +163,7 @@ board.addEventListener("pointerdown",e=>{
 board.addEventListener("pointermove",e=>{
   if(!drag) return;
   if(!drag.moved && Math.hypot(e.clientX-drag.x,e.clientY-drag.y)>5){
-    drag.moved=true; drag.ghost.style.display="grid";
+    drag.moved=true; drag.ghost.style.display="block";
     const src=board.querySelector(`[data-sq="${drag.from}"] .pc`); if(src) src.classList.add("lift");
   }
   if(drag.moved){ drag.ghost.style.left=e.clientX+"px"; drag.ghost.style.top=e.clientY+"px"; }
@@ -309,21 +309,16 @@ function finish(){
   renderAll();
 }
 function nextLine(){
-  const trap=S.mode==="punish", every=trap?TALL:ALL, sc=trap?S.tscope:S.scope;
-  const isCur=([o,l])=>o===S.oi&&l===S.li;
-  let o,l;
-  if(sc==="line"){
-    // "This line": step to the next line in order, and drill that one from now on
-    const i=every.findIndex(isCur);
-    [o,l]=every[(i+1)%every.length];
-  } else {
-    let pool=sc==="opening"?(trap?trapIdx(op()):bookIdx(op())).map(li=>[S.oi,li]):every;
-    pool=pool.filter(x=>!isCur(x));
-    if(!pool.length) pool=every.filter(x=>!isCur(x));
-    const fresh=pool.filter(([a,b])=>prog(BOOK[a].lines[b].id)<3);
-    const src=fresh.length?fresh:pool;
-    [o,l]=src[Math.floor(Math.random()*src.length)];
-  }
+  let pool;
+  const sc=S.mode==="punish"?S.tscope:S.scope;
+  if(sc==="line") pool=[[S.oi,S.li]];
+  else if(sc==="opening") pool=(S.mode==="punish"?trapIdx(op()):bookIdx(op())).map(li=>[S.oi,li]);
+  else pool=S.mode==="punish"?TALL:ALL;
+  if(!pool.length) pool=S.mode==="punish"?TALL:ALL;
+  if(pool.length>1) pool=pool.filter(([o,l])=>!(o===S.oi&&l===S.li));
+  const fresh=pool.filter(([o,l])=>prog(BOOK[o].lines[l].id)<3);
+  const src=fresh.length?fresh:pool;
+  const [o,l]=src[Math.floor(Math.random()*src.length)];
   setLine(o,l,0); startPractice(); renderAll();
 }
 $("bHint").onclick=()=>{
@@ -344,7 +339,7 @@ function renderPractice(o){
   $("progBar").style.width=(100*P.idx/ln.sans.length)+"%";
   $("stats").innerHTML=`<span>Move <b>${Math.min(P.idx,ln.sans.length)}</b> of ${ln.sans.length}</span><span>Mistakes <b>${P.mistakes}</b></span><span>Hints <b>${P.hints}</b></span><span>Clean runs <b>${prog(ln.id)}</b>/3</span>`;
   $("bHint").disabled=P.done;
-  $("bNextLine").textContent=P.done?"Next line":"Skip to next line";
+  $("bNextLine").textContent=(S.mode==="punish"?S.tscope:S.scope)==="line"?"Play again":(P.done?"Next line":"Skip to next line");
   const t=$("pToast"); t.hidden=!P.toast; if(P.toast){t.className="toast"; t.textContent=P.toast.t;}
   const rep=op().side==="w"?"White":"Black", oth=op().side==="w"?"Black":"White";
   $("optSide").hidden=S.mode==="punish";
