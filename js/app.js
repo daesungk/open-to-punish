@@ -309,16 +309,21 @@ function finish(){
   renderAll();
 }
 function nextLine(){
-  let pool;
-  const sc=S.mode==="punish"?S.tscope:S.scope;
-  if(sc==="line") pool=[[S.oi,S.li]];
-  else if(sc==="opening") pool=(S.mode==="punish"?trapIdx(op()):bookIdx(op())).map(li=>[S.oi,li]);
-  else pool=S.mode==="punish"?TALL:ALL;
-  if(!pool.length) pool=S.mode==="punish"?TALL:ALL;
-  if(pool.length>1) pool=pool.filter(([o,l])=>!(o===S.oi&&l===S.li));
-  const fresh=pool.filter(([o,l])=>prog(BOOK[o].lines[l].id)<3);
-  const src=fresh.length?fresh:pool;
-  const [o,l]=src[Math.floor(Math.random()*src.length)];
+  const trap=S.mode==="punish", every=trap?TALL:ALL, sc=trap?S.tscope:S.scope;
+  const isCur=([o,l])=>o===S.oi&&l===S.li;
+  let o,l;
+  if(sc==="line"){
+    // "This line": step to the next line in order, and drill that one from now on
+    const i=every.findIndex(isCur);
+    [o,l]=every[(i+1)%every.length];
+  } else {
+    let pool=sc==="opening"?(trap?trapIdx(op()):bookIdx(op())).map(li=>[S.oi,li]):every;
+    pool=pool.filter(x=>!isCur(x));
+    if(!pool.length) pool=every.filter(x=>!isCur(x));
+    const fresh=pool.filter(([a,b])=>prog(BOOK[a].lines[b].id)<3);
+    const src=fresh.length?fresh:pool;
+    [o,l]=src[Math.floor(Math.random()*src.length)];
+  }
   setLine(o,l,0); startPractice(); renderAll();
 }
 $("bHint").onclick=()=>{
