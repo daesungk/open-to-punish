@@ -1,7 +1,7 @@
 {
-  "name": "book-moves",
+  "name": "open-to-punish",
   "version": "1.0.0",
-  "description": "Chess opening trainer: learn main lines, drill them from memory, and practice punishing opening mistakes.",
+  "description": "Open to Punish: a chess opening trainer. Learn the openings, drill them from memory, and punish the mistakes.",
   "private": true,
   "scripts": {
     "start": "node tools/serve.js",

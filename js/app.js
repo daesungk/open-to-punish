@@ -520,12 +520,12 @@ panel.addEventListener("click",e=>{
 });
 function localDate(){ const d=new Date(), z=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
 function saveFile(){
-  const data={app:"book-moves",format:1,player:saved.name,savedAt:new Date().toISOString(),progress:saved.progress,
+  const data={app:"open-to-punish",format:1,player:saved.name,savedAt:new Date().toISOString(),progress:saved.progress,
     settings:{oi:saved.oi,li:saved.li,mode:saved.mode,side:saved.side,scope:saved.scope,tscope:saved.tscope,pieces:saved.pieces}};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
-  a.download=`book-moves-${saved.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"player"}-${localDate()}.json`;
+  a.download=`open-to-punish-${saved.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"player"}-${localDate()}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
   pState.msg={t:`Saved ${a.download}. Check your Downloads folder.`}; renderPlayers();
@@ -534,8 +534,8 @@ $("fileIn").addEventListener("change",async e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
   let d;
   try{ d=JSON.parse(await f.text()); }catch(err){ d=null; }
-  if(!d||d.app!=="book-moves"||typeof d.progress!=="object"||!d.progress){
-    pState.msg={bad:true,t:`${f.name} isn't a Book Moves progress file.`}; return renderPlayers();
+  if(!d||!["open-to-punish","book-moves"].includes(d.app)||typeof d.progress!=="object"||!d.progress){
+    pState.msg={bad:true,t:`${f.name} isn't an Open to Punish progress file.`}; return renderPlayers();
   }
   const progress={};
   for(const [k,v] of Object.entries(d.progress)) if(typeof k==="string"&&Number.isFinite(+v)) progress[k]=Math.max(0,Math.min(3,Math.round(+v)));

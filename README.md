@@ -1,8 +1,10 @@
-# Book Moves
+# Open to Punish
+
+**Chess Opening Trainer** · *Learn the openings. Punish the mistakes.*
 
 A chess opening trainer that runs entirely in your browser. Learn the main lines move by move, play them from memory, and practice punishing the mistakes opponents make when they leave the book.
 
-![Book Moves: punishing the Fried Liver mistake 5...Nxd5?](docs/screenshot.png)
+![Open to Punish: punishing the Fried Liver mistake 5...Nxd5?](docs/screenshot.png)
 
 ## What's inside
 
@@ -24,8 +26,8 @@ A chess opening trainer that runs entirely in your browser. Learn the main lines
 **As an installable app:** serving the folder over `http://localhost` lets the browser install it and cache it for offline use. With [Node.js](https://nodejs.org) 18 or newer:
 
 ```sh
-git clone https://github.com/<you>/book-moves.git
-cd book-moves
+git clone https://github.com/<you>/open-to-punish.git
+cd open-to-punish
 npm start
 ```
 
@@ -43,7 +45,7 @@ Progress stays in that one browser, and opening `index.html` directly, `localhos
 
 1. Push this repo to GitHub with `main` as the default branch.
 2. In the repo, open **Settings → Pages** and set **Source** to **GitHub Actions**.
-3. The workflow in `.github/workflows/pages.yml` checks every line with `npm test` and deploys. Your trainer will be live at `https://<you>.github.io/book-moves/`.
+3. The workflow in `.github/workflows/pages.yml` checks every line with `npm test` and deploys. Your trainer will be live at `https://<you>.github.io/open-to-punish/`.
 
 ## Add your own lines
 

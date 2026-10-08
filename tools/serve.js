@@ -25,4 +25,4 @@ http.createServer((req, res) => {
     res.writeHead(200, { "Content-Type": types[path.extname(file)] || "application/octet-stream", "Cache-Control": "no-cache" });
     res.end(data);
   });
-}).listen(port, "127.0.0.1", () => console.log(`Book Moves is running at http://localhost:${port}`));
+}).listen(port, "127.0.0.1", () => console.log(`Open to Punish is running at http://localhost:${port}`));

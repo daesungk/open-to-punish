@@ -39,9 +39,11 @@ button:focus-visible, select:focus-visible, input:focus-visible{outline:2px soli
 
 /* header */
 header.top{display:flex; align-items:center; justify-content:space-between; gap:12px 20px; flex-wrap:wrap; margin-bottom:20px}
-.brand{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap}
+.brand{display:flex; align-items:center; gap:6px 16px; flex-wrap:wrap}
 .brand h1{font-weight:700; font-size:22px; margin:0; letter-spacing:-.01em}
-.brand p{margin:0; color:var(--muted); font-size:15px}
+.brand-sub{display:flex; flex-direction:column; line-height:1.3}
+.brand-sub .kind{font-size:12.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--accent)}
+.brand-sub .tagline{font-size:15px; color:var(--muted)}
 .tally{font-size:14px; color:var(--muted); font-variant-numeric:tabular-nums}
 .tally b{color:var(--ink); font-weight:600}
 
