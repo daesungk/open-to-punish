@@ -1,0 +1,11 @@
+{
+  "name": "book-moves",
+  "version": "1.0.0",
+  "description": "Chess opening trainer: learn main lines, drill them from memory, and practice punishing opening mistakes.",
+  "private": true,
+  "scripts": {
+    "start": "node tools/serve.js",
+    "test": "node tools/validate.js"
+  },
+  "license": "MIT"
+}

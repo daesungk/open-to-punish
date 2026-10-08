@@ -1,0 +1,79 @@
+# Book Moves
+
+A chess opening trainer that runs entirely in your browser. Learn the main lines move by move, play them from memory, and practice punishing the mistakes opponents make when they leave the book.
+
+![Book Moves: punishing the Fried Liver mistake 5...Nxd5?](docs/screenshot.png)
+
+## What's inside
+
+- **17 openings, 52 main lines.** Italian, Ruy Lopez, Scotch, King's Gambit, Vienna, Petroff, Sicilian (Najdorf, Dragon, Sveshnikov, Taimanov, Alapin), French, Caro-Kann, Scandinavian, Pirc, Queen's Gambit and Slav, London, King's Indian, Nimzo-Indian, Grünfeld and English. Each move has a short explanation of why it's played.
+- **35 mistake drills.** Classic traps like Legal's Mate, the Fried Liver, the Elephant Trap, the Lasker Trap and the Siberian Trap, plus engine-found punishments of natural-looking mistakes. Every drill was checked with Stockfish: after the right reply you are at least about 1.5 pawns better, usually winning outright.
+- **Three modes**
+  - **Learn:** step through a line with the arrow keys. A list shows every book move and known mistake from the current position, so you can branch into other variations.
+  - **Practice:** the computer plays the book replies and you have to find your side's moves. Hints highlight the piece, then show an arrow.
+  - **Punish:** the opponent leaves the book with a mistake and you have to find the refutation, then convert.
+- **Progress tracking.** Three clean runs (no mistakes, no hints) mark a line as learned. Progress is stored in your browser.
+- **Works offline** and installs as an app. No account, no tracking, no build step.
+
+## Run it locally
+
+**Quickest:** download or clone the repo and double-click `index.html`. Everything, including fonts and the chess library, is bundled, so it works without an internet connection.
+
+**As an installable app:** serving the folder over `http://localhost` lets the browser install it and cache it for offline use. With [Node.js](https://nodejs.org) 18 or newer:
+
+```sh
+git clone https://github.com/<you>/book-moves.git
+cd book-moves
+npm start
+```
+
+Then open <http://localhost:8080>. In Chrome or Edge, click the install icon in the address bar. In Safari on macOS, choose **File → Add to Dock**. On iPhone or Android, open the GitHub Pages site and choose **Add to Home Screen**.
+
+No `npm install` is needed: the project has no dependencies.
+
+## Publish on GitHub Pages
+
+1. Push this repo to GitHub with `main` as the default branch.
+2. In the repo, open **Settings → Pages** and set **Source** to **GitHub Actions**.
+3. The workflow in `.github/workflows/pages.yml` checks every line with `npm test` and deploys. Your trainer will be live at `https://<you>.github.io/book-moves/`.
+
+## Add your own lines
+
+Openings live in `data/book.js` and mistake drills in `data/traps.js`. Moves are written in standard algebraic notation, and a `{comment}` after a move explains it.
+
+```js
+{ name:"Exchange Variation",
+  moves:"e4 e6 d4 d5 exd5 {White releases the tension.} exd5 Nf3 Nf6" }
+```
+
+A mistake drill marks the opponent's mistake with `?` and the refutation with `!`, and says what you win:
+
+```js
+{ name:"Frankenstein: 4...Nf6??", gain:"Checkmate on move 5.",
+  moves:"e4 e5 Nc3 Nf6 Bc4 Nxe4 Qh5 Nf6? {Forgets f7.} Qxf7#" }
+```
+
+Add `side:"b"` to a drill when the player punishing the mistake is Black but the opening is normally played as White, or the reverse.
+
+Run `npm test` before committing. It plays through every line and reports any illegal move, missing `?` mark or duplicate name.
+
+After changing any file, bump `VERSION` in `sw.js` so installed copies pick up the update.
+
+## Project layout
+
+```
+index.html              page markup
+css/app.css             styles, light and dark themes
+js/app.js               board, Learn / Practice / Punish logic
+data/book.js            opening lines
+data/traps.js           mistake drills
+vendor/chess.js         move generation and validation (chess.js 0.10.3)
+fonts/                  bundled fonts (chess pieces subset to 6 KB)
+sw.js, manifest.webmanifest, icons/   offline support and app install
+tools/validate.js       npm test: checks every line
+tools/serve.js          npm start: local server
+```
+
+## License
+
+MIT for the app code and opening data. chess.js is BSD 2-Clause and the fonts are under the SIL Open Font License; see `LICENSE`.
