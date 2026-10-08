@@ -127,7 +127,7 @@ function renderBoard(o={}){
   }
   board.innerHTML=h;
   const turn=fen.split(" ")[1];
-  $("turn").innerHTML=`<span class="dot ${turn}"></span>${turn==="w"?"White":"Black"} to move`;
+  $("turn").innerHTML=`<span class="dot ${turn}"></span>${turn==="w"?"White":"Black"}<span class="tm"> to move</span>`;
 }
 function lastMove(){
   if(S.mode==="learn") return S.ply>0?line().vm[S.ply-1]:null;
@@ -403,7 +403,7 @@ function setMode(m,keep){
   for(const [id,v] of [["tLearn","learn"],["tPractice","practice"],["tPunish","punish"]]) $(id).setAttribute("aria-selected",m===v);
   $("learnView").hidden=m!=="learn"; $("learnView").style.display=m==="learn"?"flex":"none";
   $("practiceView").hidden=m==="learn"; $("practiceView").style.display=m!=="learn"?"flex":"none";
-  $("navBtns").style.visibility=m==="learn"?"visible":"hidden";
+  $("navBtns").style.display=m==="learn"?"":"none";
   if(m!=="learn") startPractice();
   renderAll();
 }

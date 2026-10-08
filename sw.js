@@ -1,6 +1,6 @@
 /* Offline support: cache the whole app on install, serve from cache first.
    Bump VERSION whenever any file changes so returning users get the update. */
-const VERSION = "book-moves-v4";
+const VERSION = "book-moves-v5";
 const FILES = [
   "./", "index.html", "manifest.webmanifest",
   "css/app.css", "js/app.js", "js/pieces.js", "data/book.js", "data/traps.js", "vendor/chess.js",
