@@ -91,7 +91,11 @@ function parseFen(f){
   rows.forEach((r,ri)=>{ let fi=0; for(const ch of r){ if(/\d/.test(ch)) fi+=+ch; else { map[FILES[fi]+(8-ri)]={t:ch.toLowerCase(),c:ch===ch.toUpperCase()?"w":"b"}; fi++; } } });
   return map;
 }
+const PIECE_STYLES=[["classic","Classic"],["totoy","Totoy"],["staunty","Staunty"]];
+const pieceStyle=()=>(typeof PIECE_SETS!=="undefined"&&PIECE_SETS[saved.pieces])?saved.pieces:"classic";
 function pieceHTML(p){
+  const st=pieceStyle();
+  if(st!=="classic") return `<span class="pc ${p.c}"><img src="${PIECE_SETS[st][p.c+p.t.toUpperCase()]}" alt="" draggable="false"></span>`;
   const d=PIECES[p.t];
   return p.c==="w"
     ? `<span class="pc w"><svg viewBox="0 0 100 100" aria-hidden="true"><path class="w1" d="${d.wback}"/><path class="w2" d="${d.line}"/></svg></span>`
@@ -127,7 +131,7 @@ function renderBoard(o={}){
   }
   board.innerHTML=h;
   const turn=fen.split(" ")[1];
-  $("turn").innerHTML=`<span class="dot ${turn}"></span>${turn==="w"?"White":"Black"}<span class="tm"> to move</span>`;
+  $("turn").innerHTML=`<span class="dot ${turn}"></span><span>${turn==="w"?"White":"Black"}<span class="tm"> to move</span></span>`;
 }
 function lastMove(){
   if(S.mode==="learn") return S.ply>0?line().vm[S.ply-1]:null;
@@ -422,6 +426,23 @@ document.addEventListener("keydown",e=>{
   else if((e.key==="h"||e.key==="H")&&drill()) $("bHint").click();
 });
 
+/* ---------- piece style ---------- */
+function renderPieceStyle(){
+  const cur=pieceStyle();
+  $("segPieces").innerHTML=PIECE_STYLES.filter(([v])=>v==="classic"||(typeof PIECE_SETS!=="undefined"&&PIECE_SETS[v])).map(([v,l])=>{
+    const prev=v==="classic"?pieceHTMLFor("classic",{t:"n",c:"w"}):`<span class="pc w"><img src="${PIECE_SETS[v].wN}" alt=""></span>`;
+    return `<button data-v="${v}" aria-pressed="${cur===v}"><span class="pv">${prev}</span>${l}</button>`;
+  }).join("");
+  const credit={totoy:'Totoy by Kosal Sen · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
+    staunty:'Staunty by sadsnake1 · <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>'}[cur];
+  $("pieceCredit").innerHTML=credit||"";
+}
+function pieceHTMLFor(style,p){ const keep=saved.pieces; saved.pieces=style; const h=pieceHTML(p); saved.pieces=keep; return h; }
+$("segPieces").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  saved.pieces=b.dataset.v; persist(); renderPieceStyle(); render();
+});
+
 /* ---------- players, save and load ---------- */
 const panel=$("playerPanel"), pBtn=$("bPlayer");
 let pState={edit:null,del:null,msg:null};
@@ -456,7 +477,7 @@ function renderPlayers(){
 function switchPlayer(id){
   clearTimeout(timer);
   store.current=id; saved=store.profiles[id]; persist();
-  loadSettings(); setMode(S.mode); renderPlayers();
+  loadSettings(); setMode(S.mode); renderPlayers(); renderPieceStyle();
 }
 function togglePanel(open){
   panel.hidden=open===undefined?!panel.hidden:!open;
@@ -500,7 +521,7 @@ panel.addEventListener("click",e=>{
 function localDate(){ const d=new Date(), z=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
 function saveFile(){
   const data={app:"book-moves",format:1,player:saved.name,savedAt:new Date().toISOString(),progress:saved.progress,
-    settings:{oi:saved.oi,li:saved.li,mode:saved.mode,side:saved.side,scope:saved.scope,tscope:saved.tscope}};
+    settings:{oi:saved.oi,li:saved.li,mode:saved.mode,side:saved.side,scope:saved.scope,tscope:saved.tscope,pieces:saved.pieces}};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
@@ -531,4 +552,5 @@ $("fileIn").addEventListener("change",async e=>{
 
 setMode(S.mode);
 renderPlayers();
+renderPieceStyle();
 })();

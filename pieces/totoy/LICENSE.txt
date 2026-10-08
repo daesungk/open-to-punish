@@ -1,0 +1,6 @@
+Totoy chess pieces
+Artist: Kosal Sen
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+Source: Lichess (https://github.com/lichess-org/lila, public/piece/totoy)
+The files are included unchanged.

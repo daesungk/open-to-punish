@@ -14,6 +14,7 @@ A chess opening trainer that runs entirely in your browser. Learn the main lines
   - **Punish:** the opponent leaves the book with a mistake and you have to find the refutation, then convert.
 - **Progress tracking for several players.** Three clean runs (no mistakes, no hints) mark a line as learned. Each player on the device has their own progress.
 - **Save and load.** Save a player's progress to a `.json` file and load it in another browser or on another computer.
+- **Three piece styles.** Classic, Totoy or Staunty, chosen under the board and saved for each player.
 - **Works offline** and installs as an app. No account, no tracking, no build step.
 
 ## Run it locally
@@ -72,7 +73,9 @@ After changing any file, bump `VERSION` in `sw.js` so installed copies pick up t
 index.html              page markup
 css/app.css             styles, light and dark themes
 js/app.js               board, Learn / Practice / Punish logic
-js/pieces.js            chess piece shapes (SVG paths)
+js/pieces.js            Classic piece shapes (SVG paths)
+pieces/totoy, staunty/  Totoy and Staunty piece files, each with its LICENSE.txt
+js/piece-sets.js        those files packed for offline use (tools/build-piece-sets.js)
 data/book.js            opening lines
 data/traps.js           mistake drills
 vendor/chess.js         move generation and validation (chess.js 0.10.3)
@@ -84,4 +87,10 @@ tools/serve.js          npm start: local server
 
 ## License
 
-MIT for the app code and opening data. chess.js is BSD 2-Clause; the Figtree font and the piece shapes (from Noto Sans Symbols 2) are under the SIL Open Font License. See `LICENSE`.
+MIT for the app code and opening data. chess.js is BSD 2-Clause; the Figtree font and the Classic piece shapes (from Noto Sans Symbols 2) are under the SIL Open Font License. See `LICENSE`.
+
+Piece styles:
+- **Totoy** by Kosal Sen, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- **Staunty** by sadsnake1, [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). Non-commercial only: while the project includes `pieces/staunty`, it may not be used commercially. Delete that folder and run `node tools/build-piece-sets.js` to remove it.
+
+Both sets are included unchanged from [Lichess](https://github.com/lichess-org/lila).

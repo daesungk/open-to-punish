@@ -1,0 +1,7 @@
+Staunty chess pieces
+Artist: sadsnake1
+License: Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Source: Lichess (https://github.com/lichess-org/lila, public/piece/staunty)
+The files are included unchanged. Because of the NonCommercial term, these files
+(and any copy of Book Moves that includes them) may not be used commercially.
