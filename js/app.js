@@ -1,7 +1,6 @@
 (function(){
 "use strict";
 const FILES="abcdefgh";
-const PNAME={n:"knight",b:"bishop",r:"rook",q:"queen",k:"king",p:"pawn"};
 const posKey=f=>f.split(" ").slice(0,4).join(" ");
 
 /* ---------- build the book ---------- */
@@ -31,19 +30,20 @@ const trapIdx=o=>o.lines.map((l,i)=>l.punish?i:-1).filter(i=>i>=0);
 const sanA=(ln,i)=>ln.sans[i]+(ln.ann[i]||"");
 
 function autoNote(ln,i){
-  const m=ln.vm[i], prev=ln.vm[i-1];
-  if(m.san.startsWith("O-O-O")) return "Castles queenside: the king steps aside and the rook comes to the center.";
-  if(m.san.startsWith("O-O")) return "Castles kingside to tuck the king away and connect the rooks.";
-  let t;
-  if(m.flags.includes("e")) t="Captures en passant.";
-  else if(m.captured) t=(prev&&prev.to===m.to)?`Recaptures on ${m.to}.`:`Captures the ${PNAME[m.captured]} on ${m.to}.`;
-  else if((m.piece==="n"||m.piece==="b")&&(m.from[1]==="1"||m.from[1]==="8")) t=`Develops the ${PNAME[m.piece]} to ${m.to}.`;
-  else if(m.piece==="p") t=`Pawn to ${m.to}.`;
-  else t=`${PNAME[m.piece][0].toUpperCase()+PNAME[m.piece].slice(1)} to ${m.to}.`;
-  if(m.san.includes("+")) t+=" Check.";
-  return t+(ln.punish&&i>ln.dev?"":" Standard book move.");
+  const m=ln.vm[i], prev=ln.vm[i-1], P=t("pname");
+  if(m.san.startsWith("O-O-O")) return t("castleQ");
+  if(m.san.startsWith("O-O")) return t("castleK");
+  let x;
+  if(m.flags.includes("e")) x=t("ep");
+  else if(m.captured) x=(prev&&prev.to===m.to)?t("recapture",m.to):t("capture",P[m.captured],m.to);
+  else if((m.piece==="n"||m.piece==="b")&&(m.from[1]==="1"||m.from[1]==="8")) x=t("develop",P[m.piece],m.to);
+  else if(m.piece==="p") x=t("pawnTo",m.to);
+  else x=t("pieceTo",P[m.piece],m.to);
+  if(m.san.includes("+")) x+=t("checkSuffix");
+  return x+(ln.punish&&i>ln.dev?"":t("bookSuffix"));
 }
-const noteOf=(ln,i)=>ln.notes[i]||autoNote(ln,i);
+const noteOf=(ln,i)=>ln.notes[i]?cNote(ln.notes[i]):autoNote(ln,i);
+const side=c=>t(c==="w"?"white":"black");
 const moveLabel=(i,san)=>(Math.floor(i/2)+1)+(i%2?"... ":". ")+san;
 
 /* ---------- storage: one progress record per player ---------- */
@@ -59,6 +59,8 @@ if(!store||!store.profiles||!Object.keys(store.profiles).length){
 }
 if(!store.profiles[store.current]) store.current=Object.keys(store.profiles)[0];
 let saved=store.profiles[store.current];
+if(!store.lang) store.lang=(navigator.language||"").toLowerCase().startsWith("ko")?"ko":"en";
+LANG=store.lang==="ko"?"ko":"en";
 function persist(){ try{ localStorage.setItem(KEY,JSON.stringify(store)); }catch(e){} }
 persist();
 const prog=id=>saved.progress[id]||0;
@@ -91,7 +93,7 @@ function parseFen(f){
   rows.forEach((r,ri)=>{ let fi=0; for(const ch of r){ if(/\d/.test(ch)) fi+=+ch; else { map[FILES[fi]+(8-ri)]={t:ch.toLowerCase(),c:ch===ch.toUpperCase()?"w":"b"}; fi++; } } });
   return map;
 }
-const PIECE_STYLES=[["classic","Classic"],["totoy","Totoy"],["staunty","Staunty"]];
+const PIECE_STYLES=[["classic",()=>t("classic")],["totoy",()=>"Totoy"],["staunty",()=>"Staunty"]];
 const pieceStyle=()=>(typeof PIECE_SETS!=="undefined"&&PIECE_SETS[saved.pieces])?saved.pieces:"classic";
 function pieceHTML(p){
   const st=pieceStyle();
@@ -114,7 +116,7 @@ function renderBoard(o={}){
     const cls=["sq",light?"l":"d"];
     if(last&&(last.from===sq||last.to===sq)) cls.push("last");
     if(S.sel===sq) cls.push("sel");
-    const t=targets.find(m=>m.to===sq); if(t){cls.push("tgt"); if(t.captured) cls.push("cap");}
+    const tg=targets.find(m=>m.to===sq); if(tg){cls.push("tgt"); if(tg.captured) cls.push("cap");}
     if(o.hintSq===sq) cls.push("hint");
     if(o.wrong&&o.wrong.includes(sq)) cls.push("wrong");
     let co="";
@@ -131,7 +133,8 @@ function renderBoard(o={}){
   }
   board.innerHTML=h;
   const turn=fen.split(" ")[1];
-  $("turn").innerHTML=`<span class="dot ${turn}"></span><span>${turn==="w"?"White":"Black"}<span class="tm"> to move</span></span>`;
+  const [tn,tr]=t("turn",side(turn));
+  $("turn").innerHTML=`<span class="dot ${turn}"></span><span>${tn}<span class="tm">${tr}</span></span>`;
 }
 function lastMove(){
   if(S.mode==="learn") return S.ply>0?line().vm[S.ply-1]:null;
@@ -177,8 +180,8 @@ function endDrag(e,cancel){
   const d=drag; drag=null; d.ghost.remove();
   if(!d.moved||cancel){ const src=board.querySelector(".pc.lift"); if(src) src.classList.remove("lift"); return; }
   const el=document.elementFromPoint(e.clientX,e.clientY);
-  const t=el&&el.closest&&el.closest(".sq");
-  if(t&&t.dataset.sq!==d.from&&tryMove(d.from,t.dataset.sq)) return;
+  const tsq=el&&el.closest&&el.closest(".sq");
+  if(tsq&&tsq.dataset.sq!==d.from&&tryMove(d.from,tsq.dataset.sq)) return;
   render();
 }
 board.addEventListener("pointerup",e=>endDrag(e,false));
@@ -202,21 +205,21 @@ function learnMove(m,fen){
   if(c.length){
     const pick=c.find(x=>x.oi===S.oi&&!BOOK[x.oi].lines[x.li].punish)||c.find(x=>x.oi===S.oi)||c.find(x=>!BOOK[x.oi].lines[x.li].punish)||c[0];
     setLine(pick.oi,pick.li,pick.ply+1);
-    S.msg={t:`Switched to ${BOOK[pick.oi].name}: ${BOOK[pick.oi].lines[pick.li].name}.`};
+    S.msg={t:t("switched",cOpName(BOOK[pick.oi]),cLineName(BOOK[pick.oi].lines[pick.li]))};
     return renderAll();
   }
   const books=[...new Set((INDEX.get(posKey(fen))||[]).map(x=>x.san))];
-  S.msg={bad:true,t:`${m.san} is not in this book. `+(books.length?`Book moves here: ${books.join(", ")}.`:"This is the end of the book line.")};
+  S.msg={bad:true,t:t("notInBook",m.san,books.join(", "))};
   render();
 }
 function renderLearn(){
   const ln=line(), i=S.ply;
   const n=$("note");
   let h="";
-  if(i===0) h=`<div class="mv"><small>Start</small></div><p>${esc(op().summary)}</p><p class="empty">Press <kbd>→</kbd> or play the first move on the board.</p>`;
-  else h=`<div class="mv">${moveLabel(i-1,sanA(ln,i-1))}<small>${i%2?"White":"Black"}</small>${ln.dev===i-1?'<span class="tag bad">Mistake</span>':""}${ln.dev>=0&&ln.dev===i-2?'<span class="tag good">Punishment</span>':""}</div><p>${esc(noteOf(ln,i-1))}</p>`;
-  if(i===0&&ln.punish) h=`<div class="mv"><small>Mistake drill</small></div><p>${esc(ln.name)}. Step through to see where the opponent leaves the book and how to punish it.</p><p class="empty">Result: ${esc(ln.gain||"")}</p>`;
-  if(i===ln.sans.length && i>0) h+=`<p class="empty">${ln.punish?`Result: ${esc(ln.gain||"")} Switch to Punish to find the refutation yourself.`:"End of the line. Switch to Practice to play it from memory."}</p>`;
+  if(i===0) h=`<div class="mv"><small>${t("start")}</small></div><p>${esc(cOpSummary(op()))}</p><p class="empty">${t("startHint")}</p>`;
+  else h=`<div class="mv">${moveLabel(i-1,sanA(ln,i-1))}<small>${side(i%2?"w":"b")}</small>${ln.dev===i-1?`<span class="tag bad">${t("mistake")}</span>`:""}${ln.dev>=0&&ln.dev===i-2?`<span class="tag good">${t("punishment")}</span>`:""}</div><p>${esc(noteOf(ln,i-1))}</p>`;
+  if(i===0&&ln.punish) h=`<div class="mv"><small>${t("mistakeDrill")}</small></div><p>${esc(t("drillIntro",cLineName(ln)))}</p><p class="empty">${esc(t("result",cLineGain(ln)))}</p>`;
+  if(i===ln.sans.length && i>0) h+=`<p class="empty">${esc(ln.punish?t("endPunish",cLineGain(ln)):t("endLine"))}</p>`;
   if(S.msg) h+=`<div class="toast ${S.msg.bad?"bad":""}" style="margin-top:10px">${esc(S.msg.t)}</div>`;
   n.innerHTML=h;
   let s="";
@@ -228,7 +231,12 @@ function renderLearn(){
     }
   }
   const sh=$("sheet"); sh.innerHTML=s;
-  const cur=sh.querySelector(".cur"); if(cur) cur.scrollIntoView({block:"nearest"});
+  const cur=sh.querySelector(".cur");
+  // scroll only inside the move list (never the page): sideways strip on phones, vertical list elsewhere
+  if(sh.scrollWidth>sh.clientWidth+2){ sh.scrollLeft=cur?Math.max(0,cur.offsetLeft-(sh.clientWidth-cur.offsetWidth)/2):0; }
+  else if(cur){ const top=cur.offsetTop, bot=top+cur.offsetHeight;
+    if(top<sh.scrollTop) sh.scrollTop=Math.max(0,top-8); else if(bot>sh.scrollTop+sh.clientHeight) sh.scrollTop=bot-sh.clientHeight+8; }
+  else sh.scrollTop=0;
   const fen=ln.fens[i];
   const ent=INDEX.get(posKey(fen))||[];
   const by=new Map();
@@ -237,10 +245,10 @@ function renderLearn(){
   const rows=[...by].sort((a,b)=>a[1].every(x=>x.mistake)-b[1].every(x=>x.mistake));
   for(const [san,arr] of rows){
     const mine=ln.sans[i]===san, bad=arr.every(x=>x.mistake);
-    const names=[...new Set(arr.map(x=>(x.oi===S.oi?"":BOOK[x.oi].name+": ")+BOOK[x.oi].lines[x.li].name))];
-    b+=`<button class="br ${mine?"mine":""} ${bad?"mist":""}" data-san="${san}"><span class="s">${moveLabel(i,san)}${bad?"?":""}</span><span class="w">${bad?'<b>Mistake</b> · ':""}${esc(names.slice(0,4).join(" · "))}${names.length>4?` +${names.length-4}`:""}</span></button>`;
+    const names=[...new Set(arr.map(x=>(x.oi===S.oi?"":cOpName(BOOK[x.oi])+": ")+cLineName(BOOK[x.oi].lines[x.li])))];
+    b+=`<button class="br ${mine?"mine":""} ${bad?"mist":""}" data-san="${san}"><span class="s">${moveLabel(i,san)}${bad?"?":""}</span><span class="w">${bad?`<b>${t("mistake")}</b> · `:""}${esc(names.slice(0,4).join(" · "))}${names.length>4?` +${names.length-4}`:""}</span></button>`;
   }
-  $("branches").innerHTML=b||`<p class="muted">No more book moves. This is where the theory in this trainer ends.</p>`;
+  $("branches").innerHTML=b||`<p class="muted">${t("noMoreBook")}</p>`;
   $("bFirst").disabled=$("bPrev").disabled=i===0;
   $("bNext").disabled=$("bLast").disabled=i>=ln.sans.length;
 }
@@ -262,8 +270,8 @@ function startPractice(){
   const c=S.mode==="punish"?ln0.side:(S.side==="auto"?ln0.side:(ln0.side==="w"?"b":"w"));
   S.P={game:new Chess(),color:c,idx:0,mistakes:0,hints:0,hint:0,done:false,busy:false,feed:null,toast:null,wrong:null};
   S.flip=false; S.sel=null;
-  S.P.feed=ln0.punish?{k:"info",h:`Punish drill: ${ln0.name.replace(/ \((as White|as Black|trap to avoid)\)/,"")}`,p:`You play ${c==="w"?"White":"Black"}. Follow the book until your opponent goes wrong, then find the move that punishes it.`}
-    :{k:"info",h:`Play the ${ln0.name} as ${c==="w"?"White":"Black"}`,p:c==="w"?"Your move. Find the first book move.":"The computer plays White's moves. Wait for its move, then answer."};
+  S.P.feed=ln0.punish?{k:"info",h:t("punishDrill",cLineName(ln0).replace(/ \([^)]*\)$/,"")),p:t("punishIntro",side(c))}
+    :{k:"info",h:t("playLine",cLineName(ln0),side(c)),p:c==="w"?t("firstMove"):t("compWhite")};
   render(); auto();
 }
 function auto(){
@@ -275,8 +283,8 @@ function auto(){
       if(S.P!==P) return;
       P.game.move(ln.sans[P.idx]); P.idx++; P.busy=false;
       if(P.idx>=ln.sans.length) return finish();
-      if(P.idx-1===ln.dev) P.feed={k:"alert",h:`Opponent left the book: ${moveLabel(P.idx-1,ln.sans[P.idx-1])}?`,p:"That's a mistake. Find the move that punishes it.",why:noteOf(ln,P.idx-1)};
-      else P.feed={k:"info",h:`Opponent played ${moveLabel(P.idx-1,ln.sans[P.idx-1])}`,p:ln.dev>=0&&P.idx-1>ln.dev?"Keep pressing your advantage.":"Your move.",why:noteOf(ln,P.idx-1)};
+      if(P.idx-1===ln.dev) P.feed={k:"alert",h:t("leftBook",moveLabel(P.idx-1,ln.sans[P.idx-1])),p:t("leftBookP"),why:noteOf(ln,P.idx-1)};
+      else P.feed={k:"info",h:t("oppPlayed",moveLabel(P.idx-1,ln.sans[P.idx-1])),p:ln.dev>=0&&P.idx-1>ln.dev?t("keepPressing"):t("yourMove"),why:noteOf(ln,P.idx-1)};
       render();
     },520);
   }
@@ -286,19 +294,19 @@ function practiceMove(m,fen){
   P.toast=null;
   if(m.san===exp){
     P.game.move(m.san); P.idx++; P.hint=0; P.wrong=null;
-    P.feed={k:"good",h:ln.dev>=0&&P.idx-2===ln.dev?`${moveLabel(P.idx-1,m.san)}! Punished`:`${moveLabel(P.idx-1,m.san)} is correct`,why:noteOf(ln,P.idx-1)};
+    P.feed={k:"good",h:ln.dev>=0&&P.idx-2===ln.dev?t("punished",moveLabel(P.idx-1,m.san)):t("correct",moveLabel(P.idx-1,m.san)),why:noteOf(ln,P.idx-1)};
     render();
     if(P.idx>=ln.sans.length) finish(); else auto();
     return;
   }
   const other=(INDEX.get(posKey(fen))||[]).find(x=>x.san===m.san&&!x.mistake);
   if(other){
-    P.toast={t:`${m.san} is also a book move (${BOOK[other.oi].name}: ${BOOK[other.oi].lines[other.li].name}), but this drill follows the ${ln.name}. Try again.`};
+    P.toast={t:t("alsoBook",m.san,cOpName(BOOK[other.oi]),cLineName(BOOK[other.oi].lines[other.li]),cLineName(ln))};
     render(); return;
   }
   P.mistakes++; P.hint=Math.min(2,P.hint+1); P.wrong=[m.from,m.to];
   const punishing=ln.dev>=0&&P.idx===ln.dev+1;
-  P.feed={k:"bad",h:punishing?`${m.san} lets them off the hook`:`${m.san} is not the book move`,p:(punishing?"Look for a forcing move: a check, a capture or a fork. ":"")+(P.hint>=2?"The arrow shows the move.":"The highlighted piece is the one to move.")};
+  P.feed={k:"bad",h:punishing?t("offHook",m.san):t("notBook",m.san),p:(punishing?t("forcing"):"")+(P.hint>=2?t("arrowShows"):t("highlighted"))};
   render({shake:true});
   P.wrong=null;
 }
@@ -307,9 +315,9 @@ function finish(){
   const ln=line(), clean=P.mistakes===0&&P.hints===0;
   if(clean){ saved.progress[ln.id]=Math.min(3,prog(ln.id)+1); persist(); }
   const n=prog(ln.id);
-  P.feed={k:"done",h:ln.punish?(clean?(n>=3?"Trap mastered":"Punished cleanly"):"Drill complete"):clean?(n>=3?"Line learned":"Clean run"):"Line complete",
-    p:clean?(n>=3?`You've played the ${ln.name} cleanly three times.`:`${n} of 3 clean runs on this line.`):`${P.mistakes} mistake${P.mistakes===1?"":"s"} and ${P.hints} hint${P.hints===1?"":"s"}. Play it again for a clean run.`,
-    why:ln.punish?`Result: ${ln.gain}`:`Last move ${moveLabel(ln.sans.length-1,ln.sans[ln.sans.length-1])}: ${noteOf(ln,ln.sans.length-1)}`};
+  P.feed={k:"done",h:ln.punish?(clean?(n>=3?t("trapMastered"):t("punishedClean")):t("drillDone")):clean?(n>=3?t("lineLearned"):t("cleanRun")):t("lineDone"),
+    p:clean?(n>=3?t("cleanThree",cLineName(ln)):t("cleanN",n)):t("mistakesHints",P.mistakes,P.hints),
+    why:ln.punish?t("result",cLineGain(ln)):t("lastMove",moveLabel(ln.sans.length-1,ln.sans[ln.sans.length-1]),noteOf(ln,ln.sans.length-1))};
   renderAll();
 }
 function nextLine(){
@@ -328,7 +336,7 @@ function nextLine(){
 $("bHint").onclick=()=>{
   const P=S.P; if(P.done||P.busy||P.game.turn()!==P.color) return;
   P.hints++; P.hint=Math.min(2,P.hint+1);
-  P.feed={k:"info",h:P.hint>=2?"Here's the book move":"Hint",p:P.hint>=2?"Follow the arrow.":"Move the highlighted piece."};
+  P.feed={k:"info",h:P.hint>=2?t("hereBook"):t("hint"),p:P.hint>=2?t("followArrow"):t("moveHighlighted")};
   render();
 };
 $("bRestart").onclick=()=>{ startPractice(); renderAll(); };
@@ -341,15 +349,15 @@ function renderPractice(o){
   $("status").className="status "+f.k;
   $("status").innerHTML=`<div class="ic">${ic}</div><div><h4>${esc(f.h)}</h4>${f.p?`<p>${esc(f.p)}</p>`:""}${f.why?`<p class="why">${esc(f.why)}</p>`:""}</div>`;
   $("progBar").style.width=(100*P.idx/ln.sans.length)+"%";
-  $("stats").innerHTML=`<span>Move <b>${Math.min(P.idx,ln.sans.length)}</b> of ${ln.sans.length}</span><span>Mistakes <b>${P.mistakes}</b></span><span>Hints <b>${P.hints}</b></span><span>Clean runs <b>${prog(ln.id)}</b>/3</span>`;
+  $("stats").innerHTML=t("stats",Math.min(P.idx,ln.sans.length),ln.sans.length,P.mistakes,P.hints,prog(ln.id));
   $("bHint").disabled=P.done;
-  $("bNextLine").textContent=(S.mode==="punish"?S.tscope:S.scope)==="line"?"Play again":(P.done?"Next line":"Skip to next line");
-  const t=$("pToast"); t.hidden=!P.toast; if(P.toast){t.className="toast"; t.textContent=P.toast.t;}
-  const rep=op().side==="w"?"White":"Black", oth=op().side==="w"?"Black":"White";
+  $("bNextLine").textContent=(S.mode==="punish"?S.tscope:S.scope)==="line"?t("playAgain"):(P.done?t("nextLine"):t("skipLine"));
+  const toastEl=$("pToast"); toastEl.hidden=!P.toast; if(P.toast){toastEl.className="toast"; toastEl.textContent=P.toast.t;}
+  const rep=side(op().side), oth=side(op().side==="w"?"b":"w");
   $("optSide").hidden=S.mode==="punish";
-  $("segSide").innerHTML=[["auto",rep+" (repertoire)"],["flip",oth]].map(([v,l])=>`<button data-v="${v}" aria-pressed="${S.side===v}">${l}</button>`).join("");
+  $("segSide").innerHTML=[["auto",t("repertoire",rep)],["flip",oth]].map(([v,l])=>`<button data-v="${v}" aria-pressed="${S.side===v}">${l}</button>`).join("");
   const sc=S.mode==="punish"?S.tscope:S.scope;
-  $("segScope").innerHTML=(S.mode==="punish"?[["line","This drill"],["opening","This opening"],["all","All openings"]]:[["line","This line"],["opening","Shuffle opening"],["all","Shuffle all"]]).map(([v,l])=>`<button data-v="${v}" aria-pressed="${sc===v}">${l}</button>`).join("");
+  $("segScope").innerHTML=(S.mode==="punish"?[["line",t("thisDrill")],["opening",t("thisOpening")],["all",t("allOpenings")]]:[["line",t("thisLine")],["opening",t("shuffleOpening")],["all",t("shuffleAll")]]).map(([v,l])=>`<button data-v="${v}" aria-pressed="${sc===v}">${l}</button>`).join("");
   const hintActive=!P.done&&!P.busy&&P.game.turn()===P.color&&P.hint>0;
   const exp=hintActive?new Chess(P.game.fen()).move(ln.sans[P.idx]):null;
   renderBoard({hintSq:exp?exp.from:null, arrow:exp&&P.hint>=2?exp:null, wrong:P.wrong});
@@ -364,44 +372,49 @@ const GROUPS=[...new Set(BOOK.map(o=>o.group))];
 function renderRail(){
   let h="", sel="";
   GROUPS.forEach(g=>{
-    h+=`<h3>${g}</h3>`; sel+=`<optgroup label="${g}">`;
+    h+=`<h3>${esc(cGroup(g))}</h3>`; sel+=`<optgroup label="${esc(cGroup(g))}">`;
     BOOK.forEach((o,oi)=>{ if(o.group!==g) return;
       const bl=o.lines.filter(l=>!l.punish), done=bl.filter(l=>prog(l.id)>=3).length;
-      h+=`<button class="op-btn" data-oi="${oi}" aria-current="${oi===S.oi}"><span class="sd ${o.side}" title="Repertoire for ${o.side==="w"?"White":"Black"}"></span><span class="nm">${o.name}</span><span class="ct">${done}/${bl.length}</span></button>`;
-      sel+=`<option value="${oi}" ${oi===S.oi?"selected":""}>${o.name} (${o.side==="w"?"White":"Black"}) ${done}/${bl.length}</option>`;
+      h+=`<button class="op-btn" data-oi="${oi}" aria-current="${oi===S.oi}"><span class="sd ${o.side}" title="${esc(t("repertoireFor",side(o.side)))}"></span><span class="nm">${esc(cOpName(o))}</span><span class="ct">${done}/${bl.length}</span></button>`;
+      sel+=`<option value="${oi}" ${oi===S.oi?"selected":""}>${esc(cOpName(o))} (${side(o.side)}) ${done}/${bl.length}</option>`;
     });
     sel+=`</optgroup>`;
   });
   $("rail").innerHTML=h; $("opSelect").innerHTML=sel;
   const total=ALL.length, learned=ALL.filter(([o,l])=>prog(BOOK[o].lines[l].id)>=3).length;
   const tm=TALL.filter(([o,l])=>prog(BOOK[o].lines[l].id)>=3).length;
-  $("tally").innerHTML=`<b>${learned}</b> of ${total} lines learned · <b>${tm}</b> of ${TALL.length} traps mastered`;
+  $("tally").innerHTML=t("tally",learned,total,tm,TALL.length);
 }
 function renderHead(){
   const o=op();
-  $("opHead").innerHTML=`<div class="meta"><span>ECO ${o.eco}</span><span>${o.group}</span><span>Repertoire for ${o.side==="w"?"White":"Black"}</span></div><h2>${o.name}</h2><p>${esc(o.summary)}</p>`;
-  const chip=li=>{const l=o.lines[li], n=prog(l.id); return `<button class="chip ${l.punish?"trap":""}" data-li="${li}" aria-pressed="${li===S.li}">${l.name}<span class="pips" aria-label="${n} of 3 clean runs">${[0,1,2].map(k=>`<span class="${k<n?"on":""}"></span>`).join("")}</span></button>`;};
+  $("opHead").innerHTML=`<div class="meta"><span>ECO ${o.eco}</span><span>${esc(cGroup(o.group))}</span><span>${esc(t("repertoireFor",side(o.side)))}</span></div><h2>${esc(cOpName(o))}</h2><p>${esc(cOpSummary(o))}</p>`;
+  const chip=li=>{const l=o.lines[li], n=prog(l.id); return `<button class="chip ${l.punish?"trap":""}" data-li="${li}" aria-pressed="${li===S.li}">${esc(cLineName(l))}<span class="pips" aria-label="${esc(t("cleanRunsAria",n))}">${[0,1,2].map(k=>`<span class="${k<n?"on":""}"></span>`).join("")}</span></button>`;};
   const tl=trapIdx(o);
-  $("lines").innerHTML=`<div class="lgrp"><p class="label">Main lines</p><div class="chips">${bookIdx(o).map(chip).join("")}</div></div>`+
-    `<div class="lgrp"><p class="label">Punish mistakes</p><div class="chips">${tl.length?tl.map(chip).join(""):'<span class="muted">No mistake drills for this opening yet. The Punish tab can shuffle traps from all openings.</span>'}</div></div>`;
+  $("lines").innerHTML=`<div class="lgrp"><p class="label">${t("mainLines")}</p><div class="chips">${bookIdx(o).map(chip).join("")}</div></div>`+
+    `<div class="lgrp"><p class="label">${t("punishMistakes")}</p><div class="chips">${tl.length?tl.map(chip).join(""):`<span class="muted">${t("noDrills")}</span>`}</div></div>`;
+  const opt=li=>{const l=o.lines[li], n=prog(l.id); return `<option value="${li}" ${li===S.li?"selected":""}>${esc(cLineName(l))}  ${"●".repeat(n)}${"○".repeat(3-n)}</option>`;};
+  $("lineSelect").innerHTML=`<optgroup label="${esc(t("mainLines"))}">${bookIdx(o).map(opt).join("")}</optgroup>`+(tl.length?`<optgroup label="${esc(t("punishMistakes"))}">${tl.map(opt).join("")}</optgroup>`:"");
 }
 function pickOpening(oi){
   let li=bookIdx(BOOK[oi])[0];
-  if(S.mode==="punish"){ const t=trapIdx(BOOK[oi]); if(t.length) li=t[0]; else { S.oi=oi; S.li=li; return nextLine(); } }
+  if(S.mode==="punish"){ const tl=trapIdx(BOOK[oi]); if(tl.length) li=tl[0]; else { S.oi=oi; S.li=li; return nextLine(); } }
   setLine(oi,li,0); if(drill()) startPractice(); renderAll();
 }
 $("rail").addEventListener("click",e=>{const b=e.target.closest(".op-btn"); if(b) pickOpening(+b.dataset.oi);});
 $("opSelect").addEventListener("change",e=>pickOpening(+e.target.value));
-$("lines").addEventListener("click",e=>{const b=e.target.closest(".chip"); if(!b) return;
-  const li=+b.dataset.li, isT=op().lines[li].punish;
+function pickLine(li){
+  const isT=op().lines[li].punish;
   if(S.mode==="practice"&&isT) S.mode="punish";
   else if(S.mode==="punish"&&!isT) S.mode="practice";
-  setLine(S.oi,li,0); setMode(S.mode,true);});
+  setLine(S.oi,li,0); setMode(S.mode,true);
+}
+$("lines").addEventListener("click",e=>{const b=e.target.closest(".chip"); if(b) pickLine(+b.dataset.li);});
+$("lineSelect").addEventListener("change",e=>pickLine(+e.target.value));
 function setMode(m,keep){
   S.mode=m; S.sel=null; S.flip=false; clearTimeout(timer);
   if(!keep){
     if(m==="practice"&&line().punish){ S.li=bookIdx(op())[0]; S.ply=0; }
-    if(m==="punish"&&!line().punish){ const t=trapIdx(op()); if(t.length){ S.li=t[0]; S.ply=0; } else { const [o,l]=TALL[Math.floor(Math.random()*TALL.length)]; S.oi=o; S.li=l; S.ply=0; } }
+    if(m==="punish"&&!line().punish){ const tl=trapIdx(op()); if(tl.length){ S.li=tl[0]; S.ply=0; } else { const [o,l]=TALL[Math.floor(Math.random()*TALL.length)]; S.oi=o; S.li=l; S.ply=0; } }
   }
   remember();
   for(const [id,v] of [["tLearn","learn"],["tPractice","practice"],["tPunish","punish"]]) $(id).setAttribute("aria-selected",m===v);
@@ -417,7 +430,7 @@ function render(o){ if(S.mode==="learn"){ renderLearn(); renderBoard(); } else r
 function renderAll(){ renderRail(); renderHead(); render(); }
 
 document.addEventListener("keydown",e=>{
-  if(e.target.closest("select")) return;
+  if(e.target.closest("select,input")) return;
   if(e.key==="ArrowLeft"){step(-1);e.preventDefault();}
   else if(e.key==="ArrowRight"){step(1);e.preventDefault();}
   else if(e.key==="Home") step(-99);
@@ -431,10 +444,10 @@ function renderPieceStyle(){
   const cur=pieceStyle();
   $("segPieces").innerHTML=PIECE_STYLES.filter(([v])=>v==="classic"||(typeof PIECE_SETS!=="undefined"&&PIECE_SETS[v])).map(([v,l])=>{
     const prev=v==="classic"?pieceHTMLFor("classic",{t:"n",c:"w"}):`<span class="pc w"><img src="${PIECE_SETS[v].wN}" alt=""></span>`;
-    return `<button data-v="${v}" aria-pressed="${cur===v}"><span class="pv">${prev}</span>${l}</button>`;
+    return `<button data-v="${v}" aria-pressed="${cur===v}"><span class="pv">${prev}</span>${l()}</button>`;
   }).join("");
-  const credit={totoy:'Totoy by Kosal Sen · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
-    staunty:'Staunty by sadsnake1 · <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>'}[cur];
+  const credit={totoy:esc(t("credit","Totoy","Kosal Sen"))+' · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
+    staunty:esc(t("credit","Staunty","sadsnake1"))+' · <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>'}[cur];
   $("pieceCredit").innerHTML=credit||"";
 }
 function pieceHTMLFor(style,p){ const keep=saved.pieces; saved.pieces=style; const h=pieceHTML(p); saved.pieces=keep; return h; }
@@ -447,29 +460,29 @@ $("segPieces").addEventListener("click",e=>{
 const panel=$("playerPanel"), pBtn=$("bPlayer");
 let pState={edit:null,del:null,msg:null};
 const stats=pr=>{ const ids=Object.keys(pr.progress||{}).filter(k=>pr.progress[k]>=3);
-  const t=new Set(TALL.map(([o,l])=>BOOK[o].lines[l].id));
-  return {lines:ids.filter(k=>!t.has(k)).length, traps:ids.filter(k=>t.has(k)).length}; };
+  const trapIds=new Set(TALL.map(([o,l])=>BOOK[o].lines[l].id));
+  return {lines:ids.filter(k=>!trapIds.has(k)).length, traps:ids.filter(k=>trapIds.has(k)).length}; };
 function renderPlayers(){
   pBtn.querySelector(".pname").textContent=saved.name;
   if(panel.hidden) return;
   const ids=Object.keys(store.profiles);
-  let h=`<p class="label">Players on this device</p><div class="plist">`;
+  let h=`<p class="label">${t("playersOnDevice")}</p><div class="plist">`;
   for(const id of ids){
     const pr=store.profiles[id], st=stats(pr), cur=id===store.current;
     if(pState.edit===id){
-      h+=`<form class="prow edit" data-id="${id}"><input id="pRename" maxlength="30" value="${esc(pr.name)}" aria-label="Player name"><button class="btn pri" type="submit">Save</button><button class="btn" type="button" data-act="cancel">Cancel</button></form>`;
+      h+=`<form class="prow edit" data-id="${id}"><input id="pRename" maxlength="30" value="${esc(pr.name)}" aria-label="${esc(t("playerName"))}"><button class="btn pri" type="submit">${t("save")}</button><button class="btn" type="button" data-act="cancel">${t("cancel")}</button></form>`;
     } else if(pState.del===id){
-      h+=`<div class="prow del"><span>Delete ${esc(pr.name)} and all their progress?</span><button class="btn danger" data-act="confirm-del" data-id="${id}">Delete</button><button class="btn" data-act="cancel">Cancel</button></div>`;
+      h+=`<div class="prow del"><span>${esc(t("deleteQ",pr.name))}</span><button class="btn danger" data-act="confirm-del" data-id="${id}">${t("del")}</button><button class="btn" data-act="cancel">${t("cancel")}</button></div>`;
     } else {
-      h+=`<div class="prow ${cur?"cur":""}"><button class="pick" data-act="pick" data-id="${id}" aria-pressed="${cur}"><span class="pdot"></span><span class="pn">${esc(pr.name)}</span><span class="ps">${plural(st.lines,"line")} · ${plural(st.traps,"trap")}</span></button>
-        <button class="ic-btn" data-act="rename" data-id="${id}" title="Rename" aria-label="Rename ${esc(pr.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg></button>
-        ${ids.length>1?`<button class="ic-btn" data-act="delete" data-id="${id}" title="Delete" aria-label="Delete ${esc(pr.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`:""}</div>`;
+      h+=`<div class="prow ${cur?"cur":""}"><button class="pick" data-act="pick" data-id="${id}" aria-pressed="${cur}"><span class="pdot"></span><span class="pn">${esc(pr.name)}</span><span class="ps">${t("linesTraps",st.lines,st.traps)}</span></button>
+        <button class="ic-btn" data-act="rename" data-id="${id}" title="${t("rename")}" aria-label="${esc(t("renameX",pr.name))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg></button>
+        ${ids.length>1?`<button class="ic-btn" data-act="delete" data-id="${id}" title="${t("del")}" aria-label="${esc(t("deleteX",pr.name))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`:""}</div>`;
     }
   }
-  h+=`</div><form class="padd" id="pAdd"><input id="pNew" maxlength="30" placeholder="New player name" aria-label="New player name"><button class="btn" type="submit">Add player</button></form>
-  <p class="label" style="margin-top:14px">Backup for ${esc(saved.name)}</p>
-  <div class="acts"><button class="btn" data-act="save">Save to file</button><button class="btn" data-act="load">Load from file</button></div>
-  <p class="pnote">Save writes ${esc(saved.name)}'s progress to a .json file. Load it in any browser or on another computer to continue. Loading never removes progress: for each line, the better result is kept.</p>
+  h+=`</div><form class="padd" id="pAdd"><input id="pNew" maxlength="30" placeholder="${esc(t("newPlayer"))}" aria-label="${esc(t("newPlayer"))}"><button class="btn" type="submit">${t("addPlayer")}</button></form>
+  <p class="label" style="margin-top:14px">${esc(t("backupFor",saved.name))}</p>
+  <div class="acts"><button class="btn" data-act="save">${t("saveFile")}</button><button class="btn" data-act="load">${t("loadFile")}</button></div>
+  <p class="pnote">${esc(t("backupNote",saved.name))}</p>
   ${pState.msg?`<div class="toast ${pState.msg.bad?"bad":""}">${esc(pState.msg.t)}</div>`:""}`;
   panel.innerHTML=h;
   const r=$("pRename"); if(r){ r.focus(); r.select(); }
@@ -488,20 +501,19 @@ function togglePanel(open){
 pBtn.onclick=e=>{ e.stopPropagation(); togglePanel(); };
 document.addEventListener("pointerdown",e=>{ if(!panel.hidden&&!panel.contains(e.target)&&!pBtn.contains(e.target)) togglePanel(false); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!panel.hidden) togglePanel(false); });
-const plural=(n,w)=>`${n} ${w}${n===1?"":"s"}`;
 const cleanName=v=>String(v||"").replace(/\s+/g," ").trim().slice(0,30);
 const nameTaken=(n,except)=>Object.entries(store.profiles).some(([id,p])=>id!==except&&p.name.toLowerCase()===n.toLowerCase());
 panel.addEventListener("submit",e=>{
   e.preventDefault();
   if(e.target.id==="pAdd"){
     const n=cleanName($("pNew").value);
-    if(!n){ pState.msg={bad:true,t:"Type a name for the new player."}; return renderPlayers(); }
-    if(nameTaken(n)){ pState.msg={bad:true,t:`There is already a player called ${n}.`}; return renderPlayers(); }
-    const id=newId(); store.profiles[id]={name:n,progress:{}}; pState.msg={t:`Added ${n}. Their progress starts empty.`};
+    if(!n){ pState.msg={bad:true,t:t("typeName")}; return renderPlayers(); }
+    if(nameTaken(n)){ pState.msg={bad:true,t:t("nameTaken",n)}; return renderPlayers(); }
+    const id=newId(); store.profiles[id]={name:n,progress:{}}; pState.msg={t:t("added",n)};
     return switchPlayer(id);
   }
   const id=e.target.dataset.id, n=cleanName($("pRename").value);
-  if(!n||nameTaken(n,id)){ pState.msg={bad:true,t:n?`There is already a player called ${n}.`:"The name can't be empty."}; return renderPlayers(); }
+  if(!n||nameTaken(n,id)){ pState.msg={bad:true,t:n?t("nameTaken",n):t("nameEmpty")}; return renderPlayers(); }
   store.profiles[id].name=n; pState.edit=null; pState.msg=null; persist(); renderPlayers();
 });
 panel.addEventListener("click",e=>{
@@ -512,7 +524,7 @@ panel.addEventListener("click",e=>{
   else if(act==="delete"){ pState={edit:null,del:id,msg:null}; renderPlayers(); }
   else if(act==="cancel"){ pState.edit=pState.del=null; renderPlayers(); }
   else if(act==="confirm-del"){
-    const n=store.profiles[id].name; delete store.profiles[id]; pState={edit:null,del:null,msg:{t:`Deleted ${n}.`}};
+    const n=store.profiles[id].name; delete store.profiles[id]; pState={edit:null,del:null,msg:{t:t("deleted",n)}};
     if(id===store.current) switchPlayer(Object.keys(store.profiles)[0]); else { persist(); renderPlayers(); }
   }
   else if(act==="save") saveFile();
@@ -528,28 +540,45 @@ function saveFile(){
   a.download=`open-to-punish-${saved.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"player"}-${localDate()}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  pState.msg={t:`Saved ${a.download}. Check your Downloads folder.`}; renderPlayers();
+  pState.msg={t:t("savedFile",a.download)}; renderPlayers();
 }
 $("fileIn").addEventListener("change",async e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
   let d;
   try{ d=JSON.parse(await f.text()); }catch(err){ d=null; }
   if(!d||!["open-to-punish","book-moves"].includes(d.app)||typeof d.progress!=="object"||!d.progress){
-    pState.msg={bad:true,t:`${f.name} isn't an Open to Punish progress file.`}; return renderPlayers();
+    pState.msg={bad:true,t:t("notFile",f.name)}; return renderPlayers();
   }
   const progress={};
   for(const [k,v] of Object.entries(d.progress)) if(typeof k==="string"&&Number.isFinite(+v)) progress[k]=Math.max(0,Math.min(3,Math.round(+v)));
-  const n=cleanName(d.player)||"Imported player";
+  const n=cleanName(d.player)||t("importedPlayer");
   let id=Object.keys(store.profiles).find(k=>store.profiles[k].name.toLowerCase()===n.toLowerCase());
   const existed=!!id;
   if(!id){ id=newId(); store.profiles[id]=Object.assign({name:n,progress:{}},d.settings&&typeof d.settings==="object"?d.settings:{}); }
   const pr=store.profiles[id];
   for(const [k,v] of Object.entries(progress)) pr.progress[k]=Math.max(pr.progress[k]||0,v);
   const st=stats(pr);
-  pState.msg={t:`${existed?"Merged":"Loaded"} ${n}'s progress: ${plural(st.lines,"line")} learned, ${plural(st.traps,"trap")} mastered.`};
+  pState.msg={t:t("loaded",existed,n,st.lines,st.traps)};
   switchPlayer(id);
 });
 
+/* ---------- language ---------- */
+function applyStatic(){
+  document.documentElement.lang=LANG;
+  document.title=t("docTitle");
+  document.querySelectorAll("[data-i18n]").forEach(el=>{ el.textContent=t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-html]").forEach(el=>{ el.innerHTML=t(el.dataset.i18nHtml); });
+  document.querySelectorAll("[data-i18n-title]").forEach(el=>{ el.title=t(el.dataset.i18nTitle); });
+  document.querySelectorAll("[data-i18n-aria]").forEach(el=>{ el.setAttribute("aria-label",t(el.dataset.i18nAria)); });
+  document.querySelectorAll("#segLang button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===LANG));
+}
+function setLang(l){
+  LANG=l==="ko"?"ko":"en"; store.lang=LANG; persist();
+  applyStatic(); renderAll(); renderPlayers(); renderPieceStyle();
+}
+$("segLang").addEventListener("click",e=>{ const b=e.target.closest("button"); if(b&&b.dataset.v!==LANG) setLang(b.dataset.v); });
+
+applyStatic();
 setMode(S.mode);
 renderPlayers();
 renderPieceStyle();

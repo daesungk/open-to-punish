@@ -62,7 +62,9 @@ header.top{display:flex; align-items:center; justify-content:space-between; gap:
 .op-btn .sd.w{background:#fff}
 .op-btn .sd.b{background:#2a2e33; box-shadow:none}
 .op-btn .ct{font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums}
-.op-select{display:none; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:var(--surface); margin-bottom:14px; font-size:16px}
+.pickers{display:none; gap:8px; margin-bottom:14px}
+.pickers select{flex:1 1 0; min-width:0; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:var(--surface); font-size:16px; text-overflow:ellipsis}
+.view{flex-direction:column; gap:16px}
 
 /* board */
 .board-col{min-width:0}
@@ -104,6 +106,8 @@ header.top{display:flex; align-items:center; justify-content:space-between; gap:
 
 /* panel */
 .panel{min-width:0; display:flex; flex-direction:column; gap:18px}
+.op-head p{display:none}
+.lines{order:5}
 .op-head .meta{font-size:14px; color:var(--muted); display:flex; gap:4px 8px; flex-wrap:wrap}
 .op-head .meta span{background:var(--sunk); padding:2px 10px; border-radius:999px; white-space:nowrap}
 
@@ -127,7 +131,7 @@ header.top{display:flex; align-items:center; justify-content:space-between; gap:
 .sheet button.cur .an{color:inherit}
 
 .tabs{display:inline-flex; background:var(--sunk); border-radius:12px; padding:4px; gap:2px; align-self:flex-start}
-.tabs button{border:0; background:none; padding:8px 20px; border-radius:9px; font-weight:600; font-size:15px; color:var(--muted)}
+.tabs button{white-space:nowrap; border:0; background:none; padding:8px 20px; border-radius:9px; font-weight:600; font-size:15px; color:var(--muted)}
 .tabs button:hover{color:var(--ink)}
 .tabs button[aria-selected="true"]{background:var(--surface); color:var(--ink); box-shadow:0 1px 3px rgba(16,24,40,.12)}
 
@@ -137,7 +141,7 @@ header.top{display:flex; align-items:center; justify-content:space-between; gap:
 .note p{margin:6px 0 0; max-width:62ch}
 .note .empty{color:var(--muted)}
 
-.sheet{display:grid; grid-template-columns:3em 1fr 1fr; font-size:15px; font-weight:500; font-variant-numeric:tabular-nums; max-height:300px; overflow:auto; border:1px solid var(--line); border-radius:14px; background:var(--surface)}
+.sheet{position:relative; display:grid; grid-template-columns:3em 1fr 1fr; font-size:15px; font-weight:500; font-variant-numeric:tabular-nums; max-height:300px; overflow:auto; border:1px solid var(--line); border-radius:14px; background:var(--surface)}
 .sheet .n{color:var(--muted); padding:7px 0 7px 14px; background:var(--sunk)}
 .sheet button{background:none; border:0; text-align:left; padding:7px 12px; display:flex; align-items:center; gap:6px; font-weight:500}
 .sheet button:hover{background:var(--sunk)}
@@ -186,20 +190,44 @@ header.top{display:flex; align-items:center; justify-content:space-between; gap:
 kbd{font-family:var(--f-code); font-size:12px; border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:0 5px; background:var(--surface)}
 .keys{font-size:14px; color:var(--muted); margin:0}
 
-@media (max-width:1140px){
-  .app{grid-template-columns:minmax(0,1fr) minmax(0,400px)}
+/* Tablets and small laptops: two columns, board on the left and the study panel right next to it.
+   The opening and line pickers sit above the board; the panel leads with the explanation. */
+@media (max-width:1280px){
+  .app{grid-template-columns:minmax(0,1.15fr) minmax(300px,1fr); gap:24px}
   .rail{display:none}
-  .op-select{display:block}
+  .pickers{display:flex}
+  .op-head h2{font-size:24px; margin-bottom:0}
+  .sheet{max-height:240px}
 }
-@media (max-width:800px){
-  .app{grid-template-columns:minmax(0,1fr)}
-  .board-col{max-width:600px; width:100%; margin:0 auto}
-  .op-head h2{font-size:26px}
+/* Phones: one column. Mode tabs above the board; below it the move strip and the explanation,
+   so board, moves and explanation are on screen together. */
+@media (max-width:700px){
+  .app{display:flex; flex-direction:column; align-items:stretch; gap:12px}
+  .app > *, .pickers, .board-frame, .controls, .view, .op-head{min-width:0; width:100%}
+  .board-col, .panel{display:contents}
+  .pickers{order:1; margin:0}
+  .tabs{order:2; align-self:stretch; display:flex}
+  .tabs button{flex:1; padding:7px 8px}
+  .board-frame{order:3}
+  .controls{order:4; margin-top:0}
+  .view{order:5; gap:12px}
+  .pieces-row{order:7; margin-top:6px}
+  .op-head{order:8; margin-top:8px}
+  .op-head p{display:block}
+  .lines{display:none}
   .wrap{padding-inline:16px}
   .ib{min-width:40px; padding:0 8px}
   .turn{font-size:13px}
+  .note{padding:14px}
+  .note .mv{font-size:19px}
+  /* move list becomes one scrolling strip */
+  #sheet{order:-1; display:flex; align-items:center; overflow-x:auto; overflow-y:hidden; max-height:none; border-radius:12px; scrollbar-width:none; -webkit-overflow-scrolling:touch}
+  #sheet::-webkit-scrollbar{display:none}
+  #sheet .n{background:none; padding:8px 2px 8px 10px; flex:none}
+  #sheet button{flex:none; padding:8px 7px; border-radius:8px}
+  #sheet .blank{display:none}
+  .card .acts{margin-top:12px}
 }
-
 /* players */
 .hdr-r{position:relative; display:flex; align-items:center; gap:16px; flex-wrap:wrap}
 .player-wrap{position:relative}
@@ -248,3 +276,14 @@ kbd{font-family:var(--f-code); font-size:12px; border:1px solid var(--line); bor
 .seg-pieces .pv .pc{position:absolute; inset:0}
 .pieces-row .credit{font-size:13px; color:var(--muted)}
 .pieces-row .credit a{color:inherit}
+
+/* language toggle */
+.seg-lang button{padding:5px 10px; font-size:13.5px}
+@media (max-width:700px){
+  header.top{gap:10px 12px}
+  .hdr-r{gap:10px; width:100%}
+  .hdr-r .tally{flex:1 1 100%}
+}
+
+/* Korean: wrap between words, not inside them */
+html:lang(ko) body{word-break:keep-all; overflow-wrap:anywhere}

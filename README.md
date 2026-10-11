@@ -16,6 +16,7 @@ A chess opening trainer that runs entirely in your browser. Learn the main lines
   - **Punish:** the opponent leaves the book with a mistake and you have to find the refutation, then convert.
 - **Progress tracking for several players.** Three clean runs (no mistakes, no hints) mark a line as learned. Each player on the device has their own progress.
 - **Save and load.** Save a player's progress to a `.json` file and load it in another browser or on another computer.
+- **English and Korean.** Switch with the EN / 한국어 toggle in the header. Every screen, opening name, summary and move explanation is translated. The choice is remembered on the device.
 - **Three piece styles.** Classic, Totoy or Staunty, chosen under the board and saved for each player.
 - **Works offline** and installs as an app. No account, no tracking, no build step.
 
@@ -65,7 +66,9 @@ A mistake drill marks the opponent's mistake with `?` and the refutation with `!
 
 Add `side:"b"` to a drill when the player punishing the mistake is Black but the opening is normally played as White, or the reverse.
 
-Run `npm test` before committing. It plays through every line and reports any illegal move, missing `?` mark or duplicate name.
+Add the Korean for anything new in `data/ko.js`: the line name (and result, for drills) under `lines["<opening id>/<English name>"]`, and each move comment under `notes`, keyed by the English text.
+
+Run `npm test` before committing. It plays through every line and reports any illegal move, missing `?` mark, duplicate name or missing Korean translation.
 
 After changing any file, bump `VERSION` in `sw.js` so installed copies pick up the update.
 
@@ -80,6 +83,8 @@ pieces/totoy, staunty/  Totoy and Staunty piece files, each with its LICENSE.txt
 js/piece-sets.js        those files packed for offline use (tools/build-piece-sets.js)
 data/book.js            opening lines
 data/traps.js           mistake drills
+data/ko.js              Korean translations of the opening content
+js/i18n.js              interface text in English and Korean
 vendor/chess.js         move generation and validation (chess.js 0.10.3)
 fonts/                  bundled Figtree font
 sw.js, manifest.webmanifest, icons/   offline support and app install
